@@ -1,10 +1,13 @@
-
 #include "raylib.h"
+
+#include "nes.h"
 
 int main(void)
 {
 	const int width  = 800;
 	const int height = 600;
+
+	CPU *cpu = init_cpu();
 
 	InitWindow(width, height, "Example window - font loading");
 
@@ -28,6 +31,7 @@ int main(void)
 
 	UnloadFont(font);
 	CloseWindow();
+	delete_cpu(cpu);
 
 	return 0;
 }
