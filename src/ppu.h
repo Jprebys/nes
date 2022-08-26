@@ -65,5 +65,7 @@ typedef struct PPU
 	Status   status;  // PPUSTATUS $2002
 } PPU;
 
+PPU *init_ppu();
+
 
 #endif

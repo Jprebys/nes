@@ -12,4 +12,8 @@ typedef struct NES
 	Cartridge *cart;
 } NES;
 
+NES *init_nes();
+void delete_nes(NES *);
+void dump_nes_info(NES *, char*);
+
 #endif

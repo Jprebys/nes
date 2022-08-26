@@ -1,4 +1,14 @@
 #include "ppu.h"
+#include <stdint.h>
+#include <stdlib.h>
+
+PPU *init_ppu()
+{
+	PPU *ppu = malloc(sizeof(PPU));
+	return ppu;
+}
+
+
 
 uint8_t get_ppumask(PPU *ppu)
 {
@@ -67,3 +77,4 @@ void set_ppustatus(PPU *ppu, uint8_t value)
 	ppu->status.sprite_zero_hit = value & (1 << 6) ? 1 : 0;
 	ppu->status.vertical_blank = value & (1 << 7) ? 1 : 0;
 }
+
