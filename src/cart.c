@@ -1,0 +1,61 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "cart.h"
+
+#define INES_HEADER_LEN 16
+#define error_and_exit(X) do{perror(X); exit(EXIT_FAILURE);} while(0)
+
+/*
+The following was copied from: https://www.nesdev.org/wiki/INES
+
+An iNES [.nes] file consists of the following sections, in order:
+
+1. Header (16 bytes)
+2. Trainer, if present (0 or 512 bytes)
+3. PRG ROM data (16384 * x bytes)
+4. CHR ROM data, if present (8192 * y bytes)
+5. PlayChoice INST-ROM, if present (0 or 8192 bytes)
+6. PlayChoice PROM, if present (16 bytes Data, 16 bytes CounterOut) (this is often missing, see PC10 ROM-Images for details)
+7. Some ROM-Images additionally contain a 128-byte (or sometimes 127-byte) title at the end of the file.
+
+The format of the header is as follows:
+
+0-3: Constant $4E $45 $53 $1A ("NES" followed by MS-DOS end-of-file)
+4: Size of PRG ROM in 16 KB units
+5: Size of CHR ROM in 8 KB units (Value 0 means the board uses CHR RAM)
+6: Flags 6 - Mapper, mirroring, battery, trainer
+7: Flags 7 - Mapper, VS/Playchoice, NES 2.0
+8: Flags 8 - PRG-RAM size (rarely used extension)
+9: Flags 9 - TV system (rarely used extension)
+10: Flags 10 - TV system, PRG-RAM presence (unofficial, rarely used extension)
+11-15: Unused padding (should be filled with zero, but some rippers put their name across bytes 7-15)
+
+*/
+
+static const uint8_t iNES_SIG[4] = { 0x4E, 0x45, 0x53, 0x1A };
+
+
+Cartridge *load_cart_from_file(char *fname)
+{
+	Cartridge *cart = malloc(sizeof(Cartridge));
+	FILE *nes_file = fopen(fname, "r");
+
+	if (nes_file == NULL)
+		error_and_exit("Opening iNES file");
+
+	uint8_t header[INES_HEADER_LEN];
+
+	size_t bytes = fread(&header, 1, INES_HEADER_LEN, nes_file);
+	if (bytes != INES_HEADER_LEN)
+		error_and_exit("Reading iNES header");
+
+	// check signature
+	if (memcmp(&header, &iNES_SIG, 4))
+		error_and_exit("Invalid iNES signature");
+
+
+	return cart;
+	
+}

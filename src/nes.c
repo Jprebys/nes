@@ -9,11 +9,14 @@ NES *init_nes()
 	NES *nes = malloc(sizeof(NES));
 	nes->cpu = init_cpu();
 	nes->ppu = init_ppu();
+	nes->cart = NULL;
 	return nes;
 }
 
 void delete_nes(NES *nes)
 {
+	if (nes->cart != NULL)
+		free(nes->cart);
 	free(nes->ppu);
 	free(nes->cpu);
 	free(nes);

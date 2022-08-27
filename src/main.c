@@ -19,6 +19,10 @@ int main(void)
 
 	NES *nes = init_nes();
 
+	Cartridge *cart = load_cart_from_file("resources/Balloon Fight (USA).nes");
+
+
+
 	InitWindow(width, height, "Example window - font loading");
 	DisableEventWaiting();
 
