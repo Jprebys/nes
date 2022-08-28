@@ -14,6 +14,6 @@ typedef struct NES
 
 NES *init_nes();
 void delete_nes(NES *);
-void dump_nes_info(NES *, char*);
+void dump_nes_info(NES *, char *);
 
 #endif

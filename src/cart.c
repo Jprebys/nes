@@ -5,6 +5,8 @@
 #include "cart.h"
 
 #define INES_HEADER_LEN 16
+#define PRG_BLOCK_SIZE  16384
+#define CHR_BLOCK_SIZE  8192
 #define error_and_exit(X) do{perror(X); exit(EXIT_FAILURE);} while(0)
 
 /*
@@ -40,13 +42,12 @@ static const uint8_t iNES_SIG[4] = { 0x4E, 0x45, 0x53, 0x1A };
 Cartridge *load_cart_from_file(char *fname)
 {
 	Cartridge *cart = malloc(sizeof(Cartridge));
-	FILE *nes_file = fopen(fname, "r");
 
+	FILE *nes_file = fopen(fname, "r");
 	if (nes_file == NULL)
 		error_and_exit("Opening iNES file");
 
 	uint8_t header[INES_HEADER_LEN];
-
 	size_t bytes = fread(&header, 1, INES_HEADER_LEN, nes_file);
 	if (bytes != INES_HEADER_LEN)
 		error_and_exit("Reading iNES header");
@@ -55,7 +56,26 @@ Cartridge *load_cart_from_file(char *fname)
 	if (memcmp(&header, &iNES_SIG, 4))
 		error_and_exit("Invalid iNES signature");
 
+	cart->prg_rom_size = header[4] * PRG_BLOCK_SIZE;
+	cart->chr_rom_size = header[5] * CHR_BLOCK_SIZE;
+	cart->prg_rom = malloc(cart->prg_rom_size);
+	cart->chr_rom = malloc(cart->chr_rom_size);
+
+	cart->mirroring        = header[6] & (1 << 0) ? true : false;
+	cart->contains_ram     = header[6] & (1 << 1) ? true : false;
+	cart->trainer_present  = header[6] & (1 << 2) ? true : false;
+	cart->ignore_mirroring = header[6] & (1 << 3) ? true : false;
+
+	cart->mapper_id = 0;
+	cart->mapper_id |= ((header[6] >> 4) & 0x0F);
+	cart->mapper_id |= (header[7] & 0xF0);
 
 	return cart;
-	
+}
+
+void delete_cart(Cartridge *cart)
+{
+	free(cart->prg_rom);
+	free(cart->chr_rom);
+	free(cart);
 }

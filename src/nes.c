@@ -2,7 +2,7 @@
 
 #include "nes.h"
 #include "cpu.h"
-
+#include "cart.h"
 
 NES *init_nes()
 {
@@ -16,7 +16,7 @@ NES *init_nes()
 void delete_nes(NES *nes)
 {
 	if (nes->cart != NULL)
-		free(nes->cart);
+		delete_cart(nes->cart);
 	free(nes->ppu);
 	free(nes->cpu);
 	free(nes);

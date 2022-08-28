@@ -15,13 +15,10 @@ int main(void)
 	const int buttons[BUTTON_COUNT] = { KEY_W, KEY_A, KEY_S, KEY_D, KEY_J, KEY_K, KEY_N, KEY_M };
 	const char *button_names[] = { "Up", "Left", "Down", "Right",
 		                          "A", "B", "Select", "Start" };
-	bool keys_pressed[BUTTON_COUNT] = { false };
+	bool keys_pressed[BUTTON_COUNT];
 
 	NES *nes = init_nes();
-
-	Cartridge *cart = load_cart_from_file("resources/Balloon Fight (USA).nes");
-
-
+	nes->cart = load_cart_from_file("resources/Balloon Fight (USA).nes");
 
 	InitWindow(width, height, "Example window - font loading");
 	DisableEventWaiting();
@@ -58,7 +55,6 @@ int main(void)
 		DrawTextEx(font, nes_info_buffer, text_info_pos, (float)font.baseSize, 1, RAYWHITE);
 
 		EndDrawing();
-
 	}
 
 	UnloadFont(font);
