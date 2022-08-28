@@ -397,9 +397,8 @@ void zero_indirect_y(CPU *cpu)
 	val = cpu->memory[cpu->PC + 1];
 	little = cpu->memory[val];
 	if (val == 0xFF)
-	{
 		big = cpu->memory[0x00];
-	} else
+	else
 		big = cpu->memory[val + 1];
 	
 	uint16_t addr = (uint16_t)big << 8 | little;

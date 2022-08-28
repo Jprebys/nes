@@ -2,6 +2,8 @@
 #define _PPU_H
 
 #include <stdint.h>
+#include <stdbool.h>
+
 
 typedef struct Mask 
 {
@@ -63,6 +65,18 @@ typedef struct PPU
 	Controller ctrl;  // PPUCTRL   $2000
 	Mask       mask;  // PPUMASK   $2001
 	Status   status;  // PPUSTATUS $2002
+
+	uint8_t oam_addr; // OAMADDR   $2003
+	uint8_t oam_data; // OAMDATA   $2004
+	uint8_t scroll;   // PPUSCROLL $2005
+	uint8_t addr;     // PPUADDR   $2006
+	uint8_t data;     // PPUDATA   $2007
+	uint8_t oam_dma;  // OAMDMA    $4014
+
+
+	bool latch_set;
+	uint8_t latch_value;
+
 } PPU;
 
 PPU *init_ppu();
