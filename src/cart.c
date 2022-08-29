@@ -79,3 +79,13 @@ void delete_cart(Cartridge *cart)
 	free(cart->chr_rom);
 	free(cart);
 }
+
+
+uint8_t cart_read(Cartridge *cart, uint16_t addr) 
+{
+	// TODO implement this
+	(void) cart;
+	(void) addr;
+	printf("[WARNING] cart read unimplemented\n");
+	return 0x00;
+}

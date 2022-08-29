@@ -9,7 +9,7 @@
 #define PAGES          256
 #define ADDRESS_BYTES  BYTES_PER_PAGE*PAGES
 
-
+struct NES;
 struct CPU;
 
 typedef struct Instruction 
@@ -53,11 +53,15 @@ typedef struct CPU
 	uint8_t  current_cycles;
 	uint32_t total_cycles;
 
+	// reference to system for communication
+	struct NES *nes;
+
 } CPU;
 
 CPU *init_cpu();
 void reset_cpu(CPU *);
 void delete_cpu(CPU *);
+void connect_system(CPU *, struct NES *);
 uint8_t get_flags(CPU *);
 void set_flags(CPU *, uint8_t);
 void dump_cpu(CPU *, FILE *);

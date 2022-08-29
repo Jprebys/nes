@@ -19,7 +19,7 @@ typedef struct Cartridge
 	bool mirroring;         // 0: horizontal (vertical arrangement) (CIRAM A10 = PPU A11) 1: vertical (horizontal arrangement) (CIRAM A10 = PPU A10)
 	bool ignore_mirroring;  // 1: Ignore mirroring control or above mirroring bit; instead provide four-screen VRAM
 
-	
+
 
 	uint8_t trainer[TRAINER_SIZE];
 
@@ -30,5 +30,6 @@ typedef struct Cartridge
 
 Cartridge *load_cart_from_file(char *);
 void delete_cart(Cartridge *);
+uint8_t cart_read(Cartridge *, uint16_t);
 
 #endif

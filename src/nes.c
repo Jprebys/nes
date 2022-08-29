@@ -14,6 +14,7 @@ NES *init_nes()
 	nes->cpu = init_cpu();
 	nes->ppu = init_ppu();
 	nes->cart = NULL;
+	connect_system(nes->cpu, nes);
 	return nes;
 }
 
@@ -45,7 +46,8 @@ void dump_nes_info(NES *nes, char *buffer)
 }
 
 
-void mem_write(NES *nes, uint16_t addr, uint8_t value)
+
+void cpu_write(NES *nes, uint16_t addr, uint8_t value)
 {
 	if (addr < VRAM_MAX_ADDR)
 	{
@@ -88,12 +90,27 @@ void mem_write(NES *nes, uint16_t addr, uint8_t value)
 				perror("Invalid PPU Addr");
 				exit(EXIT_FAILURE);
 		}
+	} else if (addr == 0x4014) {
+		// TODO write OAM DMA
+		// https://wiki.nesdev.com/w/index.php/PPU_programmer_reference#OAM_DMA_.28.244014.29_.3E_write
+	} else if (addr < 0x4016) {
+		// TODO write to APU here
+	} else if (addr == 0x4016) {
+		printf("[WARNING] Attemting to write to controller 1; ignoring\n");
+	} else if (addr == 0x4017) {
+		printf("[WARNING] Attemting to write to controller 2; ignoring\n");
+	} else if (addr < 0x6000) {
+		printf("[WARNING] Attemting to write to expansion ROM; ignoring\n");
+	} else if (addr < 0x8000) {
+		// SRAM
+		printf("[WARNING] Attemting to write to unimplemented SRAM; ignoring\n");
 	} else {
-		printf("Ignoring write to address %04X\n", addr);
+		printf("[WARNING] Attemting to write to PRG ROM; ignoring\n");
 	}
 }
 
-uint8_t mem_read(NES *nes, uint16_t addr) {
+
+uint8_t cpu_read(NES *nes, uint16_t addr) {
 	if (addr < VRAM_MAX_ADDR) {
 		// CPU VRAM is mirrored 4 ways so we strip
 		// off the 2 most significant bits
@@ -124,9 +141,24 @@ uint8_t mem_read(NES *nes, uint16_t addr) {
 				perror("Invalid PPU Addr");
 				exit(EXIT_FAILURE);
 		}
-	} else {
-		printf("Ignoring read from address %04X; returning 0\n", addr);
+	} else if (addr < 0x4014) {
+		printf("[WARNING] Attempting to read from write-only APU address %04X; returning 0\n", addr);
 		return 0x00;
+	} else if (addr == 0x4015) {
+		// TODO - implement APU register
+		return 0x00;
+	} else if (addr == 0x4016) {
+		return nes->controller1_state;
+	} else if (addr == 0x4017) {
+		return nes->controller2_state;
+	} else if (addr < 0x6000) {
+		printf("[WARNING] Attempting to read from unimplemented expansion ROM address %04X; returning 0\n", addr);
+		return 0x00;
+	} else if (addr < 0x8000) {
+		printf("[WARNING] Attempting to read from unimplemented SRAM address %04X; returning 0\n", addr);
+		return 0x00;
+	} else {
+		return cart_read(nes->cart, addr);
 	}
 
 }

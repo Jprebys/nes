@@ -49,6 +49,8 @@ CPU *init_cpu()
 	return cpu;
 }
 
+void connect_system(CPU *cpu, struct NES *nes) { cpu->nes = nes; }
+
 void reset_cpu(CPU *cpu)
 {
 	memset(cpu, 0, sizeof(CPU));
@@ -132,14 +134,14 @@ void dec_stack_ptr(CPU *cpu)
 
 void stack_push(CPU *cpu, uint8_t value)
 {
-	cpu->memory[STACK_START + cpu->SP] = value;
+	cpu_write(cpu->nes, STACK_START + cpu->SP, value);
 	dec_stack_ptr(cpu);
 }
 
 uint8_t stack_pop(CPU *cpu)
 {
 	inc_stack_ptr(cpu);
-	return cpu->memory[STACK_START + cpu->SP];
+	return cpu_read(cpu->nes, STACK_START + cpu->SP);
 }
 
 void stack_push_word(CPU *cpu, uint16_t word)
