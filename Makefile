@@ -1,7 +1,7 @@
 TARGET = main
 SRC_DIR = src
 LIBS = -lraylib -lGL -lm -lpthread -ldl -lrt -lX11
-CC = clang
+CC = gcc
 CFLAGS = -g -Wall -Wextra
 
 .PHONY: default all clean

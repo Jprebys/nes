@@ -73,13 +73,20 @@ typedef struct PPU
 	uint8_t data;     // PPUDATA   $2007
 	uint8_t oam_dma;  // OAMDMA    $4014
 
-
 	bool latch_set;
 	uint8_t latch_value;
+
+	uint8_t oam_memory[256];
 
 } PPU;
 
 PPU *init_ppu();
 
+uint8_t get_ppumask(PPU *);
+void set_ppumask(PPU *, uint8_t);
+uint8_t get_ppuctrl(PPU *);
+void set_ppuctrl(PPU *, uint8_t);
+uint8_t get_ppustatus(PPU *);
+void set_ppustatus(PPU *, uint8_t);
 
 #endif
