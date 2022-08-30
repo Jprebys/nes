@@ -75,7 +75,6 @@ Cartridge *load_cart_from_file(char *fname)
 		cart->mirroring = HORIZONTAL;
 	}
 
-
 	cart->mapper_id = 0;
 	cart->mapper_id |= ((header[6] >> 4) & 0x0F);
 	cart->mapper_id |= (header[7] & 0xF0);
@@ -91,11 +90,10 @@ void delete_cart(Cartridge *cart)
 }
 
 
-uint8_t cart_read(Cartridge *cart, uint16_t addr) 
+uint8_t cart_read_prg(Cartridge *cart, uint16_t addr) 
 {
-	// TODO implement this
-	(void) cart;
-	(void) addr;
-	printf("[WARNING] cart read unimplemented\n");
-	return 0x00;
+	if (cart->prg_rom_size == 0x4000 && addr >= 0x4000) {
+		addr = addr % 0x4000;
+	}
+	return cart->prg_rom[addr];
 }

@@ -69,7 +69,7 @@ void cpu_write(NES *nes, uint16_t addr, uint8_t value)
 				set_ppumask(nes->ppu, value);
 				break;
 			case 0x2002:
-				set_ppustatus(nes->ppu, value);
+				printf("[WARNING] Attemting to write to read-only register PPU\n");
 				break;
 			case 0x2003:
 				nes->ppu->oam_addr = value;
@@ -91,8 +91,8 @@ void cpu_write(NES *nes, uint16_t addr, uint8_t value)
 				exit(EXIT_FAILURE);
 		}
 	} else if (addr == 0x4014) {
-		// TODO write OAM DMA
 		// https://wiki.nesdev.com/w/index.php/PPU_programmer_reference#OAM_DMA_.28.244014.29_.3E_write
+		oam_dma(nes, value);
 	} else if (addr < 0x4016) {
 		// TODO write to APU here
 	} else if (addr == 0x4016) {
@@ -122,19 +122,24 @@ uint8_t cpu_read(NES *nes, uint16_t addr) {
 		addr &= 0b0010000000000111;
 		switch (addr) {
 			case 0x2000:
-				return get_ppuctrl(nes->ppu);
+				printf("[WARNING] Attemting to read write-only register PPUCTRL\n");
+				return 0x00;
 			case 0x2001:
-				return get_ppumask(nes->ppu);
+				printf("[WARNING] Attemting to read write-only register PPUMASK\n");
+				return 0x00;			
 			case 0x2002:
 				return get_ppustatus(nes->ppu);
 			case 0x2003:
-				return nes->ppu->oam_addr;
+				printf("[WARNING] Attemting to read write-only register OAMADDR\n");
+				return 0x00;
 			case 0x2004:
 				return nes->ppu->oam_data;
 			case 0x2005:
-				return nes->ppu->scroll;
+				printf("[WARNING] Attemting to read write-only register PPUSCROLL\n");
+				return 0x00;
 			case 0x2006:
-				return nes->ppu->addr;	
+				printf("[WARNING] Attemting to read write-only register PPUADDR\n");
+				return 0x00;
 			case 0x2007:
 				return nes->ppu->data;
 			default:
@@ -158,10 +163,20 @@ uint8_t cpu_read(NES *nes, uint16_t addr) {
 		printf("[WARNING] Attempting to read from unimplemented SRAM address %04X; returning 0\n", addr);
 		return 0x00;
 	} else {
-		return cart_read(nes->cart, addr);
+		return cart_read_prg(nes->cart, addr);
 	}
 
 }
 
-
+void oam_dma(NES *nes, uint8_t value)
+{
+	uint8_t data;
+	uint8_t oam_start = nes->ppu->oam_addr;
+	uint16_t cpu_mem_start = (uint16_t)value << 8;
+	for (size_t i = 0; i < 256; ++i)
+	{
+		data = cpu_read(nes, cpu_mem_start + i);
+		nes->ppu->oam_memory[(oam_start + i) % 256] = data;
+	}
+}
 

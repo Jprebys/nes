@@ -31,6 +31,6 @@ typedef struct Cartridge
 
 Cartridge *load_cart_from_file(char *);
 void delete_cart(Cartridge *);
-uint8_t cart_read(Cartridge *, uint16_t);
+uint8_t cart_read_prg(Cartridge *, uint16_t);
 
 #endif
