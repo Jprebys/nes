@@ -61,10 +61,20 @@ Cartridge *load_cart_from_file(char *fname)
 	cart->prg_rom = malloc(cart->prg_rom_size);
 	cart->chr_rom = malloc(cart->chr_rom_size);
 
-	cart->mirroring        = header[6] & (1 << 0) ? true : false;
 	cart->contains_ram     = header[6] & (1 << 1) ? true : false;
 	cart->trainer_present  = header[6] & (1 << 2) ? true : false;
-	cart->ignore_mirroring = header[6] & (1 << 3) ? true : false;
+
+	bool v_mirroring = header[6] & (1 << 0) ? true : false;
+	bool four_screen = header[6] & (1 << 3) ? true : false;
+
+	if (four_screen) {
+		cart->mirroring = FOUR_SCREEN;
+	} else if (v_mirroring) {
+		cart->mirroring = VERTICAL;
+	} else {
+		cart->mirroring = HORIZONTAL;
+	}
+
 
 	cart->mapper_id = 0;
 	cart->mapper_id |= ((header[6] >> 4) & 0x0F);
