@@ -60,8 +60,21 @@ typedef struct Status
 } Status;
 
 
+typedef struct LoopyRegister {
+	uint16_t coarse_x : 5;
+	uint16_t coarse_y : 5;
+	uint16_t nametable_x : 1;
+	uint16_t nametable_y : 1;
+	uint16_t fine_y : 3;
+} LoopyRegister;
+
+
+
 typedef struct PPU
 {
+	uint8_t memory[0x4000];
+	uint8_t oam_memory[256];
+
 	Controller ctrl;  // PPUCTRL   $2000
 	Mask       mask;  // PPUMASK   $2001
 	Status   status;  // PPUSTATUS $2002
@@ -76,12 +89,14 @@ typedef struct PPU
 	bool latch_set;
 	uint8_t latch_value;
 
-	uint8_t oam_memory[256];
+	uint8_t address_latch;
+	uint8_t ppu_data_buffer;
 
-	uint8_t memory[0x4000];
+	int16_t scanline;
+	int16_t cycle;
 
-
-
+	LoopyRegister vram_addr;
+	LoopyRegister tram_addr;
 } PPU;
 
 PPU *init_ppu();
@@ -92,5 +107,7 @@ uint8_t get_ppuctrl(PPU *);
 void set_ppuctrl(PPU *, uint8_t);
 uint8_t get_ppustatus(PPU *);
 void set_ppustatus(PPU *, uint8_t);
+uint16_t get_loopyregister(LoopyRegister *);
+void set_loopyregister(LoopyRegister *, uint16_t);
 
 #endif

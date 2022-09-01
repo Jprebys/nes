@@ -78,3 +78,23 @@ void set_ppustatus(PPU *ppu, uint8_t value)
 	ppu->status.vertical_blank = value & (1 << 7) ? 1 : 0;
 }
 
+uint16_t get_loopyregister(LoopyRegister *reg) 
+{
+	uint16_t value = 0x0000;
+	value |= (reg->coarse_x    << 0 ) & 0b0000000000011111;
+	value |= (reg->coarse_y    << 5 ) & 0b0000001111100000;
+	value |= (reg->nametable_x << 10) & 0b0000010000000000;
+	value |= (reg->nametable_y << 11) & 0b0000100000000000;
+	value |= (reg->fine_y      << 12) & 0b0111000000000000;
+	return value;
+}
+
+void set_loopyregister(LoopyRegister *reg, uint16_t value) 
+{
+	reg->coarse_x    = (value >> 0 ) & 0b0000000000011111;
+	reg->coarse_y    = (value >> 5 ) & 0b0000000000011111;
+	reg->nametable_x = (value >> 10) & 0b0000000000000001;
+	reg->nametable_y = (value >> 11) & 0b0000000000000001;
+	reg->fine_y      = (value >> 12) & 0b0000000000000111;
+}
+
