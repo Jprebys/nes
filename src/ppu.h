@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-
+#include <stdlib.h>
 
 typedef struct Mask 
 {
@@ -69,10 +69,12 @@ typedef struct LoopyRegister {
 } LoopyRegister;
 
 
-
 typedef struct PPU
 {
-	uint8_t memory[0x4000];
+	uint8_t *chr_rom;
+	size_t chr_rom_size;
+	uint8_t pallette_table[32];
+	uint8_t vram[2048];
 	uint8_t oam_memory[256];
 
 	Controller ctrl;  // PPUCTRL   $2000
@@ -89,7 +91,9 @@ typedef struct PPU
 	bool latch_set;
 	uint8_t latch_value;
 
-	uint8_t address_latch;
+	uint8_t fine_x;
+
+	bool address_latch;
 	uint8_t ppu_data_buffer;
 
 	int16_t scanline;

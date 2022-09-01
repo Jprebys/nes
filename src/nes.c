@@ -64,6 +64,8 @@ void cpu_write(NES *nes, uint16_t addr, uint8_t value)
 		switch (addr) {
 			case 0x2000:
 				set_ppuctrl(nes->ppu, value);
+				nes->ppu->tram_addr.nametable_x = nes->ppu->ctrl.nametable_x;
+				nes->ppu->tram_addr.nametable_y = nes->ppu->ctrl.nametable_y;
 				break;
 			case 0x2001:
 				set_ppumask(nes->ppu, value);
@@ -78,13 +80,37 @@ void cpu_write(NES *nes, uint16_t addr, uint8_t value)
 				nes->ppu->oam_data = value;
 				break;
 			case 0x2005:
-				nes->ppu->scroll = value;
+				// PPU Scroll
+				if (!nes->ppu->address_latch) {
+					nes->ppu->fine_x = value & 0x07;
+					nes->ppu->tram_addr.coarse_x = value >> 3;
+					nes->ppu->address_latch = true;
+				} else {
+					nes->ppu->tram_addr.fine_y = value & 0x07;
+					nes->ppu->tram_addr.coarse_y = value >> 3;
+					nes->ppu->address_latch = false;
+				}
 				break;
 			case 0x2006:
-				nes->ppu->addr = value;	
+				// PPU addr
+				if (!nes->ppu->address_latch) {
+					uint16_t data = (uint16_t)((value & 0x3F) << 8);
+					data |= get_loopyregister(&nes->ppu->tram_addr) & 0x00FF;
+					set_loopyregister(&nes->ppu->tram_addr, data);
+					nes->ppu->address_latch = true;
+				} else {
+					uint16_t data = (get_loopyregister(&nes->ppu->tram_addr) & 0xFF00) | value;
+					set_loopyregister(&nes->ppu->vram_addr, data);
+					nes->ppu->address_latch = false;
+				}
 				break;
 			case 0x2007:
-				nes->ppu->data = value;
+				// PPU Data
+				ppu_write(nes, get_loopyregister(&nes->ppu->vram_addr), value);
+
+				uint16_t vram = get_loopyregister(&nes->ppu->vram_addr);
+				uint8_t inc = nes->ppu->ctrl.increment_mode? 32 : 1;
+				set_loopyregister(&nes->ppu->vram_addr, vram + inc);
 				break;
 			default:
 				perror("Invalid PPU Addr");
