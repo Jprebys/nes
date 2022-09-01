@@ -180,3 +180,22 @@ void oam_dma(NES *nes, uint8_t value)
 	}
 }
 
+void ppu_read(NES *nes, uint16_t addr) {
+
+}
+
+uint8_t ppu_write(NES *nes, uint16_t addr, uint8_t value) {
+
+}
+
+void load_cartridge(NES *nes, Cartridge *cart) {
+	nes->cart = cart;
+}
+
+void reset(NES *nes) {
+
+}
+
+void clock(NES *nes) {
+
+}

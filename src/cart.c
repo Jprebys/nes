@@ -5,6 +5,7 @@
 #include "cart.h"
 
 #define INES_HEADER_LEN 16
+#define TRAINER_LEN     512
 #define PRG_BLOCK_SIZE  16384
 #define CHR_BLOCK_SIZE  8192
 #define error_and_exit(X) do{perror(X); exit(EXIT_FAILURE);} while(0)
@@ -78,6 +79,33 @@ Cartridge *load_cart_from_file(char *fname)
 	cart->mapper_id = 0;
 	cart->mapper_id |= ((header[6] >> 4) & 0x0F);
 	cart->mapper_id |= (header[7] & 0xF0);
+
+	if (cart->mapper_id & 0x10) {
+		fprintf(stderr, "Error: we do not currently support iNES 2.0 files");
+		exit(EXIT_FAILURE);
+	}
+
+	if (cart->trainer_present) {
+		int result = fseek(nes_file, TRAINER_LEN, SEEK_CUR);
+		if (result == -1) {
+			perror("Fseek nes file");
+			exit(EXIT_FAILURE);
+		}
+	}
+
+	size_t prg_rom_read = fread(cart->prg_rom, 1, cart->prg_rom_size, nes_file);
+	if (prg_rom_read != cart->prg_rom_size) {
+		perror("Loading PRG ROM");
+		exit(EXIT_FAILURE);
+	}
+
+	size_t chr_rom_read = fread(cart->chr_rom, 1, cart->chr_rom_size, nes_file);
+	if (chr_rom_read != cart->chr_rom_size) {
+		perror("Loading CHR ROM");
+		exit(EXIT_FAILURE);
+	}
+
+
 
 	return cart;
 }

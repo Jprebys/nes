@@ -78,6 +78,10 @@ typedef struct PPU
 
 	uint8_t oam_memory[256];
 
+	uint8_t memory[0x4000];
+
+
+
 } PPU;
 
 PPU *init_ppu();
