@@ -103,6 +103,17 @@ typedef struct PPU
 	LoopyRegister tram_addr;
 
 	bool frame_ready;
+
+
+	// Background rendering
+	uint8_t bg_next_tile_id;
+	uint8_t bg_next_tile_attrib;
+	uint8_t bg_next_tile_lsb;
+	uint8_t bg_next_tile_msb;
+	uint16_t bg_shifter_pattern_lo;
+	uint16_t bg_shifter_pattern_hi;
+	uint16_t bg_shifter_attrib_lo;
+	uint16_t bg_shifter_attrib_hi;
 } PPU;
 
 
@@ -118,5 +129,14 @@ uint8_t get_ppustatus(PPU *);
 void set_ppustatus(PPU *, uint8_t);
 uint16_t get_loopyregister(LoopyRegister *);
 void set_loopyregister(LoopyRegister *, uint16_t);
+
+void ppu_clock(PPU *);
+
+void inc_scroll_x(PPU *);
+void inc_scroll_y(PPU *);
+void trans_addr_x(PPU *);
+void trans_addr_y(PPU *);
+void load_bg_shift(PPU *);
+void update_shifters(PPU *);
 
 #endif

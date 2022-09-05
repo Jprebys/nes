@@ -56,7 +56,7 @@ void run_next_instruction(CPU *cpu)
 {
 	cpu->operand = 0x0000;
 
-	uint8_t opcode = cpu_read(cpu, cpu->PC);
+	uint8_t opcode = cpu_read(cpu->nes, cpu->PC);
 	Instruction *current_inst = &instruction_table[opcode];
 	cpu->current_inst = current_inst;
 

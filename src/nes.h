@@ -12,6 +12,8 @@ typedef struct NES
 	Cartridge *cart;
 	uint8_t    controller1_state;
 	uint8_t    controller2_state;
+
+	size_t total_clocks;
 } NES;
 
 NES *init_nes();
