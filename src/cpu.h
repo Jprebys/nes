@@ -59,6 +59,7 @@ typedef struct CPU
 } CPU;
 
 CPU *init_cpu();
+void run_next_instruction(CPU *);
 void reset_cpu(CPU *);
 void delete_cpu(CPU *);
 void connect_system(CPU *, struct NES *);

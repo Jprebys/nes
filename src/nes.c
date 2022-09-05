@@ -137,11 +137,13 @@ void cpu_write(NES *nes, uint16_t addr, uint8_t value)
 
 
 uint8_t cpu_read(NES *nes, uint16_t addr) {
+	uint8_t data = 0x00;
+
 	if (addr < VRAM_MAX_ADDR) {
 		// CPU VRAM is mirrored 4 ways so we strip
 		// off the 2 most significant bits
 		addr &= 0b0011111111111;
-		return nes->cpu->memory[addr];
+		data = nes->cpu->memory[addr];
 	} else if (addr < PPU_REG_MAX_ADDR) {
 		// PPU registers are addr 0x2000 through 0x2007
 		// and they are mirrored up to 0x3FFF
@@ -149,49 +151,65 @@ uint8_t cpu_read(NES *nes, uint16_t addr) {
 		switch (addr) {
 			case 0x2000:
 				printf("[WARNING] Attemting to read write-only register PPUCTRL\n");
-				return 0x00;
-			case 0x2001:
+				break;
+			case 0x2001:	
 				printf("[WARNING] Attemting to read write-only register PPUMASK\n");
-				return 0x00;			
+				break;			
 			case 0x2002:
-				return get_ppustatus(nes->ppu);
+				data = get_ppustatus(nes->ppu);
+
+				// Possibly pick up noise from 5 small bits
+				// left over from last PPU bus transaction
+				data |= nes->ppu->data_buffer & 0x1F;
+
+				nes->ppu->status.vertical_blank = 0;
+				nes->ppu->address_latch = false;
+				break;
 			case 0x2003:
 				printf("[WARNING] Attemting to read write-only register OAMADDR\n");
-				return 0x00;
+				break;
 			case 0x2004:
-				return nes->ppu->oam_data;
+				data = nes->ppu->oam_data;
+				break;
 			case 0x2005:
 				printf("[WARNING] Attemting to read write-only register PPUSCROLL\n");
-				return 0x00;
+				break;
 			case 0x2006:
 				printf("[WARNING] Attemting to read write-only register PPUADDR\n");
-				return 0x00;
+				break;
 			case 0x2007:
-				return nes->ppu->data;
+				data = nes->ppu->data_buffer;
+				uint16_t vram_addr = get_loopyregister(&nes->ppu->vram_addr);
+				nes->ppu->data_buffer = ppu_read(nes, vram_addr);
+				
+				if (vram_addr >= 0x3F00)
+					data = nes->ppu->data_buffer;
+
+				uint16_t vram = get_loopyregister(&nes->ppu->vram_addr);
+				uint8_t inc = nes->ppu->ctrl.increment_mode? 32 : 1;
+				set_loopyregister(&nes->ppu->vram_addr, vram + inc);
+
+				break;
 			default:
 				perror("Invalid PPU Addr");
 				exit(EXIT_FAILURE);
 		}
 	} else if (addr < 0x4014) {
 		printf("[WARNING] Attempting to read from write-only APU address %04X; returning 0\n", addr);
-		return 0x00;
 	} else if (addr == 0x4015) {
 		// TODO - implement APU register
-		return 0x00;
 	} else if (addr == 0x4016) {
-		return nes->controller1_state;
+		data = nes->controller1_state;
 	} else if (addr == 0x4017) {
-		return nes->controller2_state;
+		data = nes->controller2_state;
 	} else if (addr < 0x6000) {
 		printf("[WARNING] Attempting to read from unimplemented expansion ROM address %04X; returning 0\n", addr);
-		return 0x00;
 	} else if (addr < 0x8000) {
 		printf("[WARNING] Attempting to read from unimplemented SRAM address %04X; returning 0\n", addr);
-		return 0x00;
 	} else {
-		return cart_read_prg(nes->cart, addr);
+		data = cart_read_prg(nes->cart, addr - 0x8000);
 	}
-
+	return data;
 }
 
 void oam_dma(NES *nes, uint8_t value)
@@ -206,12 +224,97 @@ void oam_dma(NES *nes, uint8_t value)
 	}
 }
 
-void ppu_read(NES *nes, uint16_t addr) {
+uint8_t ppu_read(NES *nes, uint16_t addr) {
+	uint8_t data = 0x00;
+	addr &= 0x3FFF;
 
+	if (addr < 0x2000) {
+
+		data = cart_read_chr(nes->cart, addr);
+
+	} else if (addr < 0x3F00) {
+
+		addr &= 0x0FFF;
+		switch (nes->cart->mirroring) {
+			// credit to javidx9 (OneLoneCoder) for working this out
+			case VERTICAL:
+				if (addr < 0x0400)
+					data = nes->ppu->nametable[0][addr & 0x03FF];
+				else if (addr < 0x0800)
+					data = nes->ppu->nametable[1][addr & 0x03FF];
+				else if (addr < 0x0C00)
+					data = nes->ppu->nametable[0][addr & 0x03FF];
+				else
+					data = nes->ppu->nametable[1][addr & 0x03FF];
+				break;
+			case HORIZONTAL:
+				if (addr < 0x0400)
+					data = nes->ppu->nametable[0][addr & 0x03FF];
+				else if (addr < 0x0800)
+					data = nes->ppu->nametable[0][addr & 0x03FF];
+				else if (addr < 0x0C00)
+					data = nes->ppu->nametable[1][addr & 0x03FF];
+				else
+					data = nes->ppu->nametable[1][addr & 0x03FF];
+				break;
+			default:
+				fprintf(stderr, "[WARNING] Unsupported mirroring type in PPU READ function\n");
+		}
+	} else if (addr >= 0x3F00 && addr <= 0x3FFF) {
+		addr &= 0x001F;
+		if (addr == 0x0010) addr = 0x0000;
+		if (addr == 0x0014) addr = 0x0004;
+		if (addr == 0x0018) addr = 0x0008;
+		if (addr == 0x001C) addr = 0x000C;
+		data = nes->ppu->palette_table[addr] & (nes->ppu->mask.greyscale ? 0x30 : 0x3F);
+	}
+	return data;
 }
 
-uint8_t ppu_write(NES *nes, uint16_t addr, uint8_t value) {
 
+void ppu_write(NES *nes, uint16_t addr, uint8_t value) {
+	addr &= 0x3FFF;
+
+	if (addr < 0x2000) {
+
+		cart_write_chr(nes->cart, addr, value);
+
+	} else if (addr < 0x3F00) {
+
+		addr &= 0x0FFF;
+		switch (nes->cart->mirroring) {
+			// credit to javidx9 (OneLoneCoder) for working this out
+			case VERTICAL:
+				if (addr < 0x0400)
+					nes->ppu->nametable[0][addr & 0x03FF] = value;
+				else if (addr < 0x0800)
+					nes->ppu->nametable[1][addr & 0x03FF] = value;
+				else if (addr < 0x0C00)
+					nes->ppu->nametable[0][addr & 0x03FF] = value;
+				else
+					nes->ppu->nametable[1][addr & 0x03FF] = value;
+				break;
+			case HORIZONTAL:
+				if (addr < 0x0400)
+					nes->ppu->nametable[0][addr & 0x03FF] = value;
+				else if (addr < 0x0800)
+					nes->ppu->nametable[0][addr & 0x03FF] = value;
+				else if (addr < 0x0C00)
+					nes->ppu->nametable[1][addr & 0x03FF] = value;
+				else
+					nes->ppu->nametable[1][addr & 0x03FF] = value;
+				break;
+			default:
+				fprintf(stderr, "[WARNING] Unsupported mirroring type in PPU READ function\n");
+		}
+	} else if (addr >= 0x3F00 && addr <= 0x3FFF) {
+		addr &= 0x001F;
+		if (addr == 0x0010) addr = 0x0000;
+		if (addr == 0x0014) addr = 0x0004;
+		if (addr == 0x0018) addr = 0x0008;
+		if (addr == 0x001C) addr = 0x000C;
+		nes->ppu->palette_table[addr] = value;
+	}
 }
 
 void load_cartridge(NES *nes, Cartridge *cart) {
@@ -219,9 +322,10 @@ void load_cartridge(NES *nes, Cartridge *cart) {
 }
 
 void reset(NES *nes) {
-
+	reset_cpu(nes->cpu);
+	reset_ppu(nes->ppu);
 }
 
 void clock(NES *nes) {
-
+	(void) nes;
 }

@@ -20,8 +20,8 @@ void dump_nes_info(NES *, char *);
 
 void cpu_write(NES *, uint16_t, uint8_t);
 uint8_t cpu_read(NES *, uint16_t);
-void ppu_read(NES *, uint16_t);
-uint8_t ppu_write(NES *, uint16_t, uint8_t);
+void ppu_write(NES *, uint16_t, uint8_t);
+uint8_t ppu_read(NES *, uint16_t);
 
 void oam_dma(NES *, uint8_t);
 

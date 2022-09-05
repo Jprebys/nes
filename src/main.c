@@ -42,6 +42,7 @@ int main(void)
 
 	while(!WindowShouldClose())
 	{
+		clock(nes);
 
 		BeginTextureMode(target);
 		// ClearBackground(WHITE);

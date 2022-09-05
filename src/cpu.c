@@ -52,6 +52,23 @@ CPU *init_cpu()
 	return cpu;
 }
 
+void run_next_instruction(CPU *cpu)
+{
+	cpu->operand = 0x0000;
+
+	uint8_t opcode = cpu_read(cpu, cpu->PC);
+	Instruction *current_inst = &instruction_table[opcode];
+	cpu->current_inst = current_inst;
+
+	cpu->current_cycles += current_inst->clock_cycles;
+	cpu->total_cycles   += current_inst->clock_cycles;
+
+	fprintf(stdout, "%04X:  ", cpu->PC);
+
+	current_inst->addr_mode(cpu);
+	current_inst->operation(cpu);
+}
+
 void connect_system(CPU *cpu, struct NES *nes) { cpu->nes = nes; }
 
 void reset_cpu(CPU *cpu)

@@ -58,6 +58,8 @@ Cartridge *load_cart_from_file(char *fname)
 		error_and_exit("Invalid iNES signature");
 
 	cart->prg_rom_size = header[4] * PRG_BLOCK_SIZE;
+	if (header[5] == 0)
+		header[5] = 1;
 	cart->chr_rom_size = header[5] * CHR_BLOCK_SIZE;
 	cart->prg_rom = malloc(cart->prg_rom_size);
 	cart->chr_rom = malloc(cart->chr_rom_size);
@@ -105,7 +107,8 @@ Cartridge *load_cart_from_file(char *fname)
 		exit(EXIT_FAILURE);
 	}
 
-
+	fprintf(stdout, "Successfully loaded iNES file with mapper %02X, %u prg banks, and %u chr banks\n",
+		    cart->mapper_id, header[4], header[5]);
 
 	return cart;
 }
@@ -125,3 +128,24 @@ uint8_t cart_read_prg(Cartridge *cart, uint16_t addr)
 	}
 	return cart->prg_rom[addr];
 }
+
+uint8_t cart_read_chr(Cartridge *cart, uint16_t addr)
+{
+	if (addr > cart->chr_rom_size) {
+		fprintf(stderr, "[WARNING] Attempting to read addr %04X outside of CHR ROM boundary (size %04X); returning 0\n",
+			    addr, cart->chr_rom_size);
+		return 0x00;
+	}
+	return cart->chr_rom[addr];
+}
+
+void cart_write_chr(Cartridge *cart, uint16_t addr, uint8_t value)
+{
+	if (!cart->contains_ram) {
+		fprintf(stderr, "[WARNING] Attempting to write to CHR ROM");
+
+	} else {
+		cart->chr_rom[addr] = value;
+	}
+}
+
