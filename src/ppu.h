@@ -5,6 +5,12 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
+#define NES_RES_WIDTH  256
+#define NES_RES_HEIGHT 240
+#define NES_SCALE      3
+#define BUTTON_COUNT   8
+#define PIXELS_LEN     NES_RES_WIDTH * NES_RES_HEIGHT * 4
+
 typedef struct Mask 
 {
 	uint8_t greyscale: 1 ;           // 0: 0 normal color, 1 produce greyscale display
@@ -68,14 +74,18 @@ typedef struct LoopyRegister {
 	uint16_t fine_y : 3;
 } LoopyRegister;
 
+typedef struct NES NES;
 
 typedef struct PPU
 {
+	NES *nes;
 	// uint8_t *chr_rom;
 	// size_t chr_rom_size;
 	uint8_t palette_table[32];
 	uint8_t nametable[2][1024];
 	uint8_t oam_memory[256];
+
+	uint8_t frame_pixels[PIXELS_LEN];
 
 	Controller ctrl;  // PPUCTRL   $2000
 	Mask       mask;  // PPUMASK   $2001
@@ -103,7 +113,6 @@ typedef struct PPU
 	LoopyRegister tram_addr;
 
 	bool frame_ready;
-
 
 	// Background rendering
 	uint8_t bg_next_tile_id;

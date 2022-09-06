@@ -14,7 +14,8 @@ NES *init_nes()
 	nes->cpu = init_cpu();
 	nes->ppu = init_ppu();
 	nes->cart = NULL;
-	connect_system(nes->cpu, nes);
+	nes->cpu->nes = nes;
+	nes->ppu->nes = nes;
 	return nes;
 }
 

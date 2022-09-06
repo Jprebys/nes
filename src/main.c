@@ -2,12 +2,8 @@
 #include <raylib.h>
 #include "nes.h"
 
-
-#define NES_RES_WIDTH  256
-#define NES_RES_HEIGHT 240
 #define NES_SCALE      3
 #define BUTTON_COUNT   8
-#define PIXELS_LEN     NES_RES_WIDTH * NES_RES_HEIGHT * 4
 
 int main(void)
 {

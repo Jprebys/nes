@@ -15,10 +15,10 @@ void reset_ppu(PPU *ppu)
 }
 
 uint8_t color_table[][3] = {
-	{ 84,  84,  84}, {  0,  30, 116}, {  8,  16, 144}, { 48,   0, 136}, { 68,   0, 100}, { 92,   0,  48}, { 84,   4,   0}, { 60,  24,   0}, { 32,  42,   0}, {  8,  58,   0}, {  0,  64,   0}, {0, 60, 0}, {0, 50, 60}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
-	{152, 150, 152}, {  8,  76, 196}, { 48,  50, 236}, { 92,  30, 228}, {136,  20, 176}, {160,  20, 100}, {152,  34,  32}, {120,  60,   0}, { 84,  90,   0}, { 40, 114,   0}, {  8, 124,   0}, {0, 118, 40}, {0, 102, 120}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0},
-	{236, 238, 236}, { 76, 154, 236}, {120, 124, 236}, {176,  98, 236}, {228,  84, 236}, {236,  88, 180}, {236, 106, 100}, {212, 136,  32}, {160, 170,   0}, {116, 196,   0}, { 76, 208,  32}, {56, 204, 108}, {56, 180, 204}, {60, 60, 60}, {0, 0, 0}, {0, 0, 0},
-	{236, 238, 236}, {168, 204, 236}, {188, 188, 236}, {212, 178, 236}, {236, 174, 236}, {236, 174, 212}, {236, 180, 176}, {228, 196, 144}, {204, 210, 120}, {180, 222, 120}, {168, 226, 144}, {152, 226, 180}, {160, 214, 228}, {160, 162, 160}, {0, 0, 0}, {0, 0, 0}
+	{ 84,  84,  84}, {  0,  30, 116}, {  8,  16, 144}, { 48,   0, 136}, { 68,   0, 100}, { 92,   0,  48}, { 84,   4,   0}, { 60,  24,   0}, { 32,  42,   0}, {  8,  58,   0}, {  0,  64,   0}, {  0,  60,   0}, {  0,  50,  60}, {  0,   0,   0}, {  0,   0,   0}, {  0,   0,   0},
+	{152, 150, 152}, {  8,  76, 196}, { 48,  50, 236}, { 92,  30, 228}, {136,  20, 176}, {160,  20, 100}, {152,  34,  32}, {120,  60,   0}, { 84,  90,   0}, { 40, 114,   0}, {  8, 124,   0}, {  0, 118,  40}, {  0, 102, 120}, {  0,   0,   0}, {  0,   0,   0}, {  0,   0,   0},
+	{236, 238, 236}, { 76, 154, 236}, {120, 124, 236}, {176,  98, 236}, {228,  84, 236}, {236,  88, 180}, {236, 106, 100}, {212, 136,  32}, {160, 170,   0}, {116, 196,   0}, { 76, 208,  32}, { 56, 204, 108}, { 56, 180, 204}, { 60,  60,  60}, {  0,   0,   0}, {  0,   0,   0},
+	{236, 238, 236}, {168, 204, 236}, {188, 188, 236}, {212, 178, 236}, {236, 174, 236}, {236, 174, 212}, {236, 180, 176}, {228, 196, 144}, {204, 210, 120}, {180, 222, 120}, {168, 226, 144}, {152, 226, 180}, {160, 214, 228}, {160, 162, 160}, {  0,   0,   0}, {  0,   0,   0}
 };
 
 uint8_t get_ppumask(PPU *ppu)
@@ -109,3 +109,156 @@ void set_loopyregister(LoopyRegister *reg, uint16_t value)
 	reg->fine_y      = (value >> 12) & 0b0000000000000111;
 }
 
+void inc_scroll_x(PPU *ppu)
+{
+	if (ppu->mask.render_bg || ppu->mask.render_sprites) 
+	{
+		if (ppu->vram_addr.coarse_x == 31)
+		{
+			// Each nametable is 32x30 tiles, so if we are at an edge
+			// we need to wrap x position around to 0 and flip table number
+			ppu->vram_addr.coarse_x = 0;
+			ppu->vram_addr.nametable_x = ppu->vram_addr.nametable_x ? 0 : 1;
+		}
+		else
+		{
+			ppu->vram_addr.coarse_x++;
+		}
+	}
+}
+
+void inc_scroll_y(PPU *ppu)
+{
+	if (ppu->mask.render_bg || ppu->mask.render_sprites) 
+	{
+		if (ppu->vram_addr.fine_y < 7)
+		{
+			ppu->vram_addr.fine_y++;
+		}
+		else
+		{
+			ppu->vram_addr.fine_y = 0;
+
+			if (ppu->vram_addr.coarse_y == 29)
+			{
+				ppu->vram_addr.coarse_y = 0;
+				ppu->vram_addr.nametable_y = ppu->vram_addr.nametable_y ? 0 : 1;
+			}
+			else if (ppu->vram_addr.coarse_y == 31)
+			{
+				ppu->vram_addr.coarse_y = 0;
+			}
+			else
+			{
+				ppu->vram_addr.coarse_y++;
+			}
+		}
+	}
+}
+
+void trans_addr_x(PPU *ppu)
+{
+	if (ppu->mask.render_bg || ppu->mask.render_sprites) 
+	{
+		ppu->vram_addr.nametable_x = ppu->tram_addr.nametable_x;
+		ppu->vram_addr.coarse_x    = ppu->tram_addr.coarse_x;
+	}
+}
+
+void trans_addr_y(PPU *ppu)
+{
+	if (ppu->mask.render_bg || ppu->mask.render_sprites) 
+	{
+		ppu->vram_addr.fine_y      = ppu->tram_addr.fine_y;
+		ppu->vram_addr.nametable_y = ppu->tram_addr.nametable_y;
+		ppu->vram_addr.coarse_y    = ppu->tram_addr.coarse_y;
+	}
+}
+
+void load_bg_shift(PPU *ppu)
+{
+	ppu->bg_shifter_pattern_lo = (ppu->bg_shifter_pattern_lo & 0xFF00) | ppu->bg_next_tile_lsb;
+	ppu->bg_shifter_pattern_hi = (ppu->bg_shifter_pattern_hi & 0xFF00) | ppu->bg_next_tile_msb;
+
+	ppu->bg_shifter_attrib_lo  = (ppu->bg_shifter_attrib_lo & 0xFF00) | ((ppu->bg_next_tile_attrib & 0b01) ? 0xFF : 0x00);
+	ppu->bg_shifter_attrib_hi  = (ppu->bg_shifter_attrib_hi & 0xFF00) | ((ppu->bg_next_tile_attrib & 0b10) ? 0xFF : 0x00);
+}
+
+void update_shifters(PPU *ppu)
+{
+	if (ppu->mask.render_bg) 
+	{
+		// Shifting background tile pattern row
+		ppu->bg_shifter_pattern_lo <<= 1;
+		ppu->bg_shifter_pattern_hi <<= 1;
+
+		// Shifting palette attributes by 1
+		ppu->bg_shifter_attrib_lo <<= 1;
+		ppu->bg_shifter_attrib_hi <<= 1;
+	}
+}
+
+uint8_t ppu_read(NES *, uint16_t);
+
+void ppu_clock(PPU *ppu)
+{
+	if (ppu->scanline >= -1 && ppu->scanline < 240)
+	{		
+		if (ppu->scanline == 0 && ppu->cycle == 0)
+		{
+			ppu->cycle = 1;
+		}
+
+		if (ppu->scanline == -1 && ppu->cycle == 1)
+		{
+			ppu->status.vertical_blank = 0;
+		}
+
+		if ((ppu->cycle >= 2 && ppu->cycle < 258) || (ppu->cycle >= 321 && ppu->cycle < 338))
+		{
+			update_shifters(ppu);
+
+			switch ((ppu->cycle - 1) % 8)
+			{
+			case 0:
+				load_bg_shift(ppu);
+
+				ppu->bg_next_tile_id = ppu_read(ppu->nes, 0x2000 | (get_loopyregister(&ppu->vram_addr) & 0x0FFF));
+
+				break;
+			case 2:
+				ppu->bg_next_tile_attrib = ppu_read(ppu->nes, 0x23C0 | (ppu->vram_addr.nametable_y << 11) 
+					                                 | (ppu->vram_addr.nametable_x << 10) 
+					                                 | ((ppu->vram_addr.coarse_y >> 2) << 3) 
+					                                 | (ppu->vram_addr.coarse_x >> 2));
+				
+				if (ppu->vram_addr.coarse_y & 0x02) ppu->bg_next_tile_attrib >>= 4;
+				if (ppu->vram_addr.coarse_x & 0x02) ppu->bg_next_tile_attrib >>= 2;
+				ppu->bg_next_tile_attrib &= 0x03;
+				break;
+
+			case 4: 
+				ppu->bg_next_tile_lsb = ppu_read(ppu->nes, (ppu->ctrl.pattern_background << 12) 
+					                       + ((uint16_t)ppu->bg_next_tile_id << 4) 
+					                       + (ppu->vram_addr.fine_y) + 0);
+
+				break;
+			case 6:
+				ppu->bg_next_tile_msb = ppu_read(ppu->nes, (ppu->ctrl.pattern_background << 12)
+					                       + ((uint16_t)ppu->bg_next_tile_id << 4)
+					                       + (ppu->vram_addr.fine_y) + 8);
+				break;
+			case 7:
+				inc_scroll_x(ppu);
+				break;
+			}
+
+		}
+
+
+
+
+
+
+	}
+}
