@@ -123,16 +123,15 @@ void delete_cart(Cartridge *cart)
 
 uint8_t cart_read_prg(Cartridge *cart, uint16_t addr) 
 {
-	if (cart->prg_rom_size == 0x4000 && addr >= 0x4000) {
-		addr = addr % 0x4000;
-	}
+	if (cart->prg_rom_size == 0x4000 && addr >= 0x4000)
+		addr %= 0x4000;
 	return cart->prg_rom[addr];
 }
 
 uint8_t cart_read_chr(Cartridge *cart, uint16_t addr)
 {
 	if (addr > cart->chr_rom_size) {
-		fprintf(stderr, "[WARNING] Attempting to read addr %04X outside of CHR ROM boundary (size %04X); returning 0\n",
+		fprintf(stderr, "[WARNING] Attempting to read addr %04X outside of CHR ROM boundary (size %04lx); returning 0\n",
 			    addr, cart->chr_rom_size);
 		return 0x00;
 	}

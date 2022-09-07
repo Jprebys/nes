@@ -113,6 +113,7 @@ typedef struct PPU
 	LoopyRegister tram_addr;
 
 	bool frame_ready;
+	bool nmi;
 
 	// Background rendering
 	uint8_t bg_next_tile_id;

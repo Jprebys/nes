@@ -17,8 +17,6 @@
 #define CPU_CLK_START  7
 
 
-FILE *assembly_outfile;
-
 // full instr set: https://www.masswerk.at/6502/6502_instruction_set.html
 // credit to OneLoneCoder for the idea behind this instruction set representation
 Instruction instruction_table[N_INSTRUCTIONS] = 
@@ -48,13 +46,14 @@ uint8_t cpu_read(NES *, uint16_t);
 CPU *init_cpu()
 {
 	CPU *cpu = malloc(sizeof(CPU));
-	reset_cpu(cpu);
 	return cpu;
 }
 
-void run_next_instruction(CPU *cpu)
+static void run_next_instruction(CPU *cpu)
 {
 	cpu->operand = 0x0000;
+
+	printf("%04X:  ", cpu->PC);
 
 	uint8_t opcode = cpu_read(cpu->nes, cpu->PC);
 	Instruction *current_inst = &instruction_table[opcode];
@@ -63,23 +62,29 @@ void run_next_instruction(CPU *cpu)
 	cpu->current_cycles += current_inst->clock_cycles;
 	cpu->total_cycles   += current_inst->clock_cycles;
 
-	fprintf(stdout, "%04X:  ", cpu->PC);
-
 	current_inst->addr_mode(cpu);
 	current_inst->operation(cpu);
+}
+
+void clock_cpu(CPU *cpu)
+{
+	if (cpu->current_cycles)
+		cpu->current_cycles--;
+	else {
+		run_next_instruction(cpu);
+	}
 }
 
 void connect_system(CPU *cpu, struct NES *nes) { cpu->nes = nes; }
 
 void reset_cpu(CPU *cpu)
 {
-	memset(cpu, 0, sizeof(CPU));
 	cpu->U = 1;  // unused flag bit 5 is always 1
 	cpu->I = 1;
 
 	uint8_t little, big;
-	little = cpu->memory[RESET_LO];
-	big = cpu->memory[RESET_HI];
+	little = cpu_read(cpu->nes, RESET_LO);
+	big = cpu_read(cpu->nes, RESET_HI);
 	cpu->PC = (uint16_t)big << 8 | little;
 
 	cpu->SP = STK_PTR_START;
@@ -255,7 +260,7 @@ void implied(CPU *cpu)
 {
 	cpu->PC += 1;
 	
-	fprintf(assembly_outfile, "%s\n", cpu->current_inst->name);
+	fprintf(stdout, "%s\n", cpu->current_inst->name);
 }
 
 // Operand is accumulator
@@ -265,7 +270,7 @@ void accumulator(CPU *cpu)
 	cpu->operand = cpu->A;
 	cpu->PC += 1;
 
-	fprintf(assembly_outfile, "%s A\n", cpu->current_inst->name);
+	fprintf(stdout, "%s A\n", cpu->current_inst->name);
 }
 
 // The operand of an immediate instruction is only one byte, and denotes a constant value
@@ -275,14 +280,14 @@ void immediate(CPU *cpu)
 	cpu->jmp_addr = cpu->operand;
 	cpu->PC += 2;
 
-	fprintf(assembly_outfile, "%s #$%02X\n", cpu->current_inst->name, cpu->operand);
+	fprintf(stdout, "%s #$%02X\n", cpu->current_inst->name, cpu->operand);
 }
 
 // The operand of a zeropage instruction is one byte, and denotes an address in the zero page
 void zero_page(CPU *cpu)
 {
 	uint8_t value = cpu_read(cpu->nes, cpu->PC + 1);
-	fprintf(assembly_outfile, "%s $%02X\n", cpu->current_inst->name, value);
+	fprintf(stdout, "%s $%02X\n", cpu->current_inst->name, value);
 
 	cpu->jmp_addr = (uint16_t)value & 0x00FF;
 	cpu->operand = cpu_read(cpu->nes, value);
@@ -302,7 +307,7 @@ void absolute(CPU *cpu)
 	cpu->operand = cpu_read(cpu->nes, addr);
 	cpu->PC += 3;
 
-	fprintf(assembly_outfile, "%s $%02X%02X\n", cpu->current_inst->name, big, little);
+	fprintf(stdout, "%s $%02X%02X\n", cpu->current_inst->name, big, little);
 }
 
 // Indirect: operand is address; effective address is contents of word at address
@@ -314,7 +319,7 @@ void indirect(CPU *cpu)
 	big = cpu_read(cpu->nes, cpu->PC + 2);
 	uint16_t addr = (uint16_t)big << 8 | little;
 
-	fprintf(assembly_outfile, "%s ($%02X%02X)\n", cpu->current_inst->name, big, little);
+	fprintf(stdout, "%s ($%02X%02X)\n", cpu->current_inst->name, big, little);
 	if (little == 0xFF)
 		big = cpu_read(cpu->nes, addr - 0xFF); // no carry bug
 	else  
@@ -335,13 +340,13 @@ void relative(CPU *cpu)
 	// cpu->jmp_addr = cpu->PC + (int8_t)offset;
 	// printf("%u = %u + %d   %u  %d\n", cpu->jmp_addr, cpu->PC, (int8_t)offset, offset, offset);
 	cpu->PC += 2;
-	fprintf(assembly_outfile, "%s $%04X\n", cpu->current_inst->name, cpu->PC + (int8_t)offset);
+	fprintf(stdout, "%s $%04X\n", cpu->current_inst->name, cpu->PC + (int8_t)offset);
 }
 
 // A zero page memory address offset by X
 void zero_offset_x(CPU *cpu)
 {
-	fprintf(assembly_outfile, "%s $%02X,X\n", cpu->current_inst->name, cpu_read(cpu->nes, cpu->PC + 1));
+	fprintf(stdout, "%s $%02X,X\n", cpu->current_inst->name, cpu_read(cpu->nes, cpu->PC + 1));
 
 	uint8_t index = (cpu_read(cpu->nes, cpu->PC + 1) + cpu->X) % 256;
 	cpu->jmp_addr = (uint16_t)index & 0x00FF;	
@@ -352,7 +357,7 @@ void zero_offset_x(CPU *cpu)
 // A zero page memory address offset by Y
 void zero_offset_y(CPU *cpu)
 {
-	fprintf(assembly_outfile, "%s $%02X,Y\n", cpu->current_inst->name, cpu_read(cpu->nes, cpu->PC + 1));
+	fprintf(stdout, "%s $%02X,Y\n", cpu->current_inst->name, cpu_read(cpu->nes, cpu->PC + 1));
 
 	uint8_t index = (cpu_read(cpu->nes, cpu->PC + 1) + cpu->Y) % 256;
 
@@ -370,7 +375,7 @@ void abs_offset_x(CPU *cpu)
 	big = cpu_read(cpu->nes, cpu->PC + 2);
 	uint16_t addr = (uint16_t)big << 8 | little;
 
-	fprintf(assembly_outfile, "%s $%02X%02X,X\n", cpu->current_inst->name, little, big);
+	fprintf(stdout, "%s $%02X%02X,X\n", cpu->current_inst->name, little, big);
 
 	cpu->jmp_addr = addr + (uint16_t)cpu->X;
 	cpu->operand = cpu_read(cpu->nes, cpu->jmp_addr);
@@ -385,7 +390,7 @@ void abs_offset_y(CPU *cpu)
 	big = cpu_read(cpu->nes, cpu->PC + 2);
 	uint16_t addr = (uint16_t)big << 8 | little;
 
-	fprintf(assembly_outfile, "%s $%02X%02X,Y\n", cpu->current_inst->name, little, big);
+	fprintf(stdout, "%s $%02X%02X,Y\n", cpu->current_inst->name, little, big);
 
 	cpu->jmp_addr = addr + (uint16_t)cpu->Y;
 	cpu->operand = cpu_read(cpu->nes, cpu->jmp_addr);
@@ -405,7 +410,7 @@ void zero_indirect_x(CPU *cpu)
 		big = cpu_read(cpu->nes, addr + 1);
 	uint16_t final_addr = (uint16_t)big << 8 | little;
 
-	fprintf(assembly_outfile, "%s ($%02X,X)\n", cpu->current_inst->name, cpu_read(cpu->nes, cpu->PC + 1));
+	fprintf(stdout, "%s ($%02X,X)\n", cpu->current_inst->name, cpu_read(cpu->nes, cpu->PC + 1));
 
 	cpu->jmp_addr = final_addr;
 
@@ -426,7 +431,7 @@ void zero_indirect_y(CPU *cpu)
 	uint16_t addr = (uint16_t)big << 8 | little;
 
 
-	fprintf(assembly_outfile, "%s ($%02X),Y\n", cpu->current_inst->name, cpu_read(cpu->nes, cpu->PC + 1));	
+	fprintf(stdout, "%s ($%02X),Y\n", cpu->current_inst->name, cpu_read(cpu->nes, cpu->PC + 1));	
 
 	cpu->jmp_addr = addr + ((uint16_t)cpu->Y & 0x00FF);
 	printf("%04X %04X\n", addr, cpu->jmp_addr);

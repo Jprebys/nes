@@ -1,5 +1,6 @@
 #include "ppu.h"
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -198,6 +199,16 @@ void update_shifters(PPU *ppu)
 	}
 }
 
+static bool on_screen(const PPU *ppu)
+{
+	int16_t cycle = ppu->cycle - 1;
+
+	if ((cycle >= 0 && cycle < NES_RES_WIDTH) 
+		&& (ppu->scanline >= 0 && ppu->scanline < NES_RES_HEIGHT))
+		return true;
+	return false;
+}
+
 uint8_t ppu_read(NES *, uint16_t);
 
 void ppu_clock(PPU *ppu)
@@ -220,45 +231,126 @@ void ppu_clock(PPU *ppu)
 
 			switch ((ppu->cycle - 1) % 8)
 			{
-			case 0:
-				load_bg_shift(ppu);
+				case 0:
+					load_bg_shift(ppu);
 
-				ppu->bg_next_tile_id = ppu_read(ppu->nes, 0x2000 | (get_loopyregister(&ppu->vram_addr) & 0x0FFF));
+					ppu->bg_next_tile_id = ppu_read(ppu->nes, 0x2000 | (get_loopyregister(&ppu->vram_addr) & 0x0FFF));
 
-				break;
-			case 2:
-				ppu->bg_next_tile_attrib = ppu_read(ppu->nes, 0x23C0 | (ppu->vram_addr.nametable_y << 11) 
-					                                 | (ppu->vram_addr.nametable_x << 10) 
-					                                 | ((ppu->vram_addr.coarse_y >> 2) << 3) 
-					                                 | (ppu->vram_addr.coarse_x >> 2));
-				
-				if (ppu->vram_addr.coarse_y & 0x02) ppu->bg_next_tile_attrib >>= 4;
-				if (ppu->vram_addr.coarse_x & 0x02) ppu->bg_next_tile_attrib >>= 2;
-				ppu->bg_next_tile_attrib &= 0x03;
-				break;
+					break;
+				case 2:
+					ppu->bg_next_tile_attrib = ppu_read(ppu->nes, 0x23C0 | (ppu->vram_addr.nametable_y << 11) 
+						                                 | (ppu->vram_addr.nametable_x << 10) 
+						                                 | ((ppu->vram_addr.coarse_y >> 2) << 3) 
+						                                 | (ppu->vram_addr.coarse_x >> 2));
+					
+					if (ppu->vram_addr.coarse_y & 0x02) ppu->bg_next_tile_attrib >>= 4;
+					if (ppu->vram_addr.coarse_x & 0x02) ppu->bg_next_tile_attrib >>= 2;
+					ppu->bg_next_tile_attrib &= 0x03;
+					break;
 
-			case 4: 
-				ppu->bg_next_tile_lsb = ppu_read(ppu->nes, (ppu->ctrl.pattern_background << 12) 
-					                       + ((uint16_t)ppu->bg_next_tile_id << 4) 
-					                       + (ppu->vram_addr.fine_y) + 0);
+				case 4: 
+					ppu->bg_next_tile_lsb = ppu_read(ppu->nes, (ppu->ctrl.pattern_background << 12) 
+						                       + ((uint16_t)ppu->bg_next_tile_id << 4) 
+						                       + (ppu->vram_addr.fine_y) + 0);
 
-				break;
-			case 6:
-				ppu->bg_next_tile_msb = ppu_read(ppu->nes, (ppu->ctrl.pattern_background << 12)
-					                       + ((uint16_t)ppu->bg_next_tile_id << 4)
-					                       + (ppu->vram_addr.fine_y) + 8);
-				break;
-			case 7:
-				inc_scroll_x(ppu);
-				break;
+					break;
+				case 6:
+					ppu->bg_next_tile_msb = ppu_read(ppu->nes, (ppu->ctrl.pattern_background << 12)
+						                       + ((uint16_t)ppu->bg_next_tile_id << 4)
+						                       + (ppu->vram_addr.fine_y) + 8);
+					break;
+				case 7:
+					inc_scroll_x(ppu);
+					break;
 			}
 
 		}
 
+		if (ppu->cycle == 256)
+		{
+			inc_scroll_y(ppu);
+		}
+
+		if (ppu->cycle == 257)
+		{
+			load_bg_shift(ppu);
+			trans_addr_x(ppu);
+		}
+
+		if (ppu->cycle == 338 || ppu->cycle == 340)
+		{
+			ppu->bg_next_tile_id = ppu_read(ppu->nes, 0x2000 | (get_loopyregister(&ppu->vram_addr) & 0x0FFF));
+		}
 
 
-
-
-
+		if (ppu->scanline == -1 && ppu->cycle >= 280 && ppu->cycle < 305)
+		{
+			trans_addr_y(ppu);
+		}
 	}
+
+	if (ppu->scanline >= 241 && ppu->scanline < 261)
+	{
+		if (ppu->scanline == 241 && ppu->cycle == 1)
+		{
+			ppu->status.vertical_blank = 1;
+
+			if (ppu->ctrl.enable_nmi) 
+				ppu->nmi = true;
+		}
+	}
+	uint8_t bg_pixel = 0x00; 
+	uint8_t bg_palette = 0x00;
+
+	if (ppu->mask.render_bg)
+	{
+		uint16_t bit_mux = 0x8000 >> ppu->fine_x;
+
+		uint8_t p0_pixel = (ppu->bg_shifter_pattern_lo & bit_mux) > 0;
+		uint8_t p1_pixel = (ppu->bg_shifter_pattern_hi & bit_mux) > 0;
+
+		bg_pixel = (p1_pixel << 1) | p0_pixel;
+
+		uint8_t bg_pal0 = (ppu->bg_shifter_attrib_lo & bit_mux) > 0;
+		uint8_t bg_pal1 = (ppu->bg_shifter_attrib_hi & bit_mux) > 0;
+		bg_palette = (bg_pal1 << 1) | bg_pal0;
+	}
+	uint32_t idx;
+	bool c;
+	if (c = on_screen(ppu)) 
+	{
+		idx = (ppu->scanline * NES_RES_WIDTH + ppu->cycle - 1) * 4;
+		uint8_t *rgb = color_table[ppu_read(ppu->nes, 0x3F00 + (bg_palette << 2) + bg_pixel) & 0x3F];
+		ppu->frame_pixels[idx]     = rgb[0];  // R
+		ppu->frame_pixels[idx + 1] = rgb[1];  // G
+		ppu->frame_pixels[idx + 2] = rgb[2];  // B
+		ppu->frame_pixels[idx + 3] =   0xFF;  // A
+		// if (rand() % 2) {
+		// 	ppu->frame_pixels[idx]     = 0;  // R
+		// 	ppu->frame_pixels[idx + 1] = 0;  // G
+		// 	ppu->frame_pixels[idx + 2] = 0;  // B
+		// 	ppu->frame_pixels[idx + 3] =   0xFF;  // A
+		// } else {
+		// 	ppu->frame_pixels[idx]     = 0xFF;  // R
+		// 	ppu->frame_pixels[idx + 1] = 0xFF;  // G
+		// 	ppu->frame_pixels[idx + 2] = 0xFF;  // B
+		// 	ppu->frame_pixels[idx + 3] =   0xFF;  // A
+		// }
+	}
+
+	ppu->cycle++;
+	if (ppu->cycle >= 341)
+	{
+		ppu->cycle = 0;
+		ppu->scanline++;
+		if (ppu->scanline >= 261)
+		{
+			ppu->scanline = -1;
+			ppu->frame_ready = true;
+		}
+	}
+
 }
+
+
+

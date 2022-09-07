@@ -40,7 +40,7 @@ void dump_nes_info(NES *nes, char *buffer)
 
 	}
 
-	pos += sprintf(pos, "\n\nA:%02X X:%02X Y:%02X P:%02X\nSP:%02X PPU: --, -- CYC:%u\n\n", cpu->A, cpu->X, cpu->Y, get_flags(cpu), cpu->SP, cpu->total_cycles);
+	pos += sprintf(pos, "\n\nA:%02X X:%02X Y:%02X P:%02X\nSP:%02X PPU: %03u, %03u CYC:%u\n\n", cpu->A, cpu->X, cpu->Y, get_flags(cpu), cpu->SP, nes->ppu->scanline, nes->ppu->cycle, cpu->total_cycles);
 	pos += sprintf(pos, "Flags: NVUBDIZC\n       %d%d%d%d%d%d%d%d\n\n", cpu->N, cpu->V, cpu->U, cpu->B, cpu->D, cpu->I, cpu->Z, cpu->C);
 	*pos = '\0';
 
@@ -208,7 +208,8 @@ uint8_t cpu_read(NES *nes, uint16_t addr) {
 	} else if (addr < 0x8000) {
 		printf("[WARNING] Attempting to read from unimplemented SRAM address %04X; returning 0\n", addr);
 	} else {
-		data = cart_read_prg(nes->cart, addr - 0x8000);
+		addr -= 0x8000;
+		data = cart_read_prg(nes->cart, addr);
 	}
 	return data;
 }
@@ -328,5 +329,18 @@ void reset(NES *nes) {
 }
 
 void clock(NES *nes) {
-	(void) nes;
+
+	nes->ppu->frame_ready = false;
+
+	for (size_t i = 0; !nes->ppu->frame_ready; ++i)
+	{
+		if (i % 3 == 0) 
+		{
+
+			// printf("CPU Clock\n");
+			clock_cpu(nes->cpu);
+		}
+		// printf("PPU Clock\n");
+		ppu_clock(nes->ppu);
+	}
 }
